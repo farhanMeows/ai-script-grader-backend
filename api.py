@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 import os
@@ -13,24 +13,36 @@ import sys
 from io import StringIO
 import time
 import json
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5174",  # Local development
-        "http://localhost:5173",  # Alternative local port
-        "http://127.0.0.1:5174",  # Local development with IP
-        "http://127.0.0.1:5173",  # Alternative local port with IP
-        "https://ai-script-grader-frontend.onrender.com",  # Deployed frontend
-        "https://ai-script-grader.vercel.app",  # Alternative deployment
-    ],
+    allow_origins=["*"],  # Allow all origins during development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
+
+# Add middleware to log requests
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"Incoming request: {request.method} {request.url}")
+    logger.info(f"Headers: {request.headers}")
+    try:
+        response = await call_next(request)
+        logger.info(f"Response status: {response.status_code}")
+        return response
+    except Exception as e:
+        logger.error(f"Request failed: {str(e)}")
+        raise
 
 # Handle Google Cloud credentials
 def setup_google_credentials():
@@ -122,11 +134,14 @@ async def upload_pdfs(
     Returns immediately with an evaluation ID.
     """
     try:
+        logger.info("Starting PDF upload process")
         evaluation_id = str(uuid.uuid4())
         
         # Save files with unique names
         answer_script_path = f"storage/answer_script_{evaluation_id}.pdf"
         question_paper_path = f"storage/question_paper_{evaluation_id}.pdf"
+        
+        logger.info(f"Saving files to: {answer_script_path} and {question_paper_path}")
         
         # Save the uploaded files
         with open(answer_script_path, "wb") as buffer:
@@ -134,6 +149,8 @@ async def upload_pdfs(
         
         with open(question_paper_path, "wb") as buffer:
             shutil.copyfileobj(question_paper.file, buffer)
+        
+        logger.info("Files saved successfully, starting evaluation")
         
         # Start evaluation in background
         background_tasks.add_task(
@@ -143,6 +160,8 @@ async def upload_pdfs(
             question_paper_path
         )
         
+        logger.info(f"Evaluation started with ID: {evaluation_id}")
+        
         return {
             "status": "processing",
             "message": "Evaluation started",
@@ -150,6 +169,7 @@ async def upload_pdfs(
         }
             
     except Exception as e:
+        logger.error(f"Upload failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 @app.get("/get-evaluated-pdf/{evaluation_id}")
