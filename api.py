@@ -83,6 +83,7 @@ async def startup_event():
 # Ensure required directories exist
 os.makedirs("storage", exist_ok=True)
 os.makedirs("evaluated_pdfs", exist_ok=True)
+os.makedirs("output_images", exist_ok=True)
 
 # Store for evaluation logs
 evaluation_logs: Dict[str, queue.Queue] = {}
@@ -132,6 +133,43 @@ def run_evaluation(evaluation_id: str, answer_script_path: str, question_paper_p
         print(f"Error during evaluation: {str(e)}")
     finally:
         log_capture.close()
+
+def cleanup_evaluation_files(evaluation_id: str):
+    """
+    Clean up all files associated with an evaluation after it's been downloaded.
+    This includes:
+    - Original PDFs from storage
+    - Generated images from output_images
+    - The evaluated PDF
+    """
+    try:
+        # Clean up storage files
+        answer_script_path = f"storage/answer_script_{evaluation_id}.pdf"
+        question_paper_path = f"storage/question_paper_{evaluation_id}.pdf"
+        for path in [answer_script_path, question_paper_path]:
+            if os.path.exists(path):
+                os.remove(path)
+                logger.info(f"Cleaned up {path}")
+
+        # Clean up output images
+        answer_script_images_dir = os.path.join("output_images", "answer_script")
+        question_paper_images_dir = os.path.join("output_images", "question_paper")
+        for dir_path in [answer_script_images_dir, question_paper_images_dir]:
+            if os.path.exists(dir_path):
+                for file in os.listdir(dir_path):
+                    file_path = os.path.join(dir_path, file)
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                logger.info(f"Cleaned up images in {dir_path}")
+
+        # Clean up evaluated PDF
+        evaluated_pdf_path = f"evaluated_pdfs/evaluated_{evaluation_id}.pdf"
+        if os.path.exists(evaluated_pdf_path):
+            os.remove(evaluated_pdf_path)
+            logger.info(f"Cleaned up {evaluated_pdf_path}")
+
+    except Exception as e:
+        logger.error(f"Error during cleanup: {str(e)}")
 
 @app.post("/upload-pdfs/")
 async def upload_pdfs(
@@ -183,9 +221,9 @@ async def upload_pdfs(
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 @app.get("/get-evaluated-pdf/{evaluation_id}")
-async def get_evaluated_pdf(evaluation_id: str):
+async def get_evaluated_pdf(evaluation_id: str, background_tasks: BackgroundTasks):
     """
-    Retrieve the evaluated PDF using the evaluation ID.
+    Retrieve the evaluated PDF using the evaluation ID and schedule cleanup after download.
     """
     pdf_path = f"evaluated_pdfs/evaluated_{evaluation_id}.pdf"
     
@@ -194,6 +232,9 @@ async def get_evaluated_pdf(evaluation_id: str):
             status_code=404,
             detail="Evaluated PDF not found. The evaluation might have failed or the ID is invalid."
         )
+    
+    # Schedule cleanup after the file is downloaded
+    background_tasks.add_task(cleanup_evaluation_files, evaluation_id)
     
     return FileResponse(
         pdf_path,
