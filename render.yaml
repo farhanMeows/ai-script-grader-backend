@@ -9,3 +9,7 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+      - key: GUNICORN_RUNNING
+        value: "true"
+      - key: PORT
+        value: "10000"

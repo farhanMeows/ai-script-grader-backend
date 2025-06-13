@@ -239,4 +239,11 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    # Only run the server directly if not running under Gunicorn
+    if not os.getenv("GUNICORN_RUNNING"):
+        uvicorn.run(
+            "api:app",
+            host="0.0.0.0",
+            port=int(os.getenv("PORT", "8000")),
+            reload=True
+        ) 
