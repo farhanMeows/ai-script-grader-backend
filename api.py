@@ -19,7 +19,14 @@ app = FastAPI()
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
+    allow_origins=[
+        "http://localhost:5174",  # Local development
+        "http://localhost:5173",  # Alternative local port
+        "http://127.0.0.1:5174",  # Local development with IP
+        "http://127.0.0.1:5173",  # Alternative local port with IP
+        "https://ai-script-grader-frontend.onrender.com",  # Deployed frontend
+        "https://ai-script-grader.vercel.app",  # Alternative deployment
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
