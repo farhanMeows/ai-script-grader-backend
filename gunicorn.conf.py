@@ -1,11 +1,6 @@
 import multiprocessing
-import os
-
-# Get port from environment variable (Render sets this)
-port = int(os.getenv("PORT", "10000"))
 
 # Gunicorn configuration
-bind = f"0.0.0.0:{port}"  # Use the port from environment variable
 workers = multiprocessing.cpu_count() * 2 + 1
 worker_class = "uvicorn.workers.UvicornWorker"
 timeout = 300  # Increased timeout for large file uploads

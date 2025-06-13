@@ -5,11 +5,9 @@ services:
     buildCommand: |
       apt-get update && apt-get install -y poppler-utils
       pip install -r requirements.txt
-    startCommand: gunicorn api:app
+    startCommand: gunicorn api:app --bind 0.0.0.0:$PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: GUNICORN_RUNNING
         value: "true"
-      - key: PORT
-        value: "10000"
