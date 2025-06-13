@@ -1,0 +1,25 @@
+# Environment variables
+.env
+
+# Google Cloud credentials
+*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+
+# Project specific
+output_images/
+evaluated_pdfs/
+block_images/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo 
