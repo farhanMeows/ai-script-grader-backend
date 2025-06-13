@@ -28,6 +28,7 @@ origins = [
     "http://127.0.0.1:5173",
     "http://127.0.0.1:5174",
     "https://ai-script-grader-frontend.vercel.app",  # Vercel frontend URL
+    "https://grader-ai.vercel.app",  # New Vercel frontend URL
     "https://ai-script-grader.onrender.com",  # Render frontend URL (if different)
 ]
 
