@@ -22,13 +22,22 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # Configure CORS
+origins = [
+    "http://localhost:5173",  # Vite default port
+    "http://localhost:5174",  # Alternative Vite port
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+    "https://ai-script-grader-frontend.vercel.app",  # Vercel frontend URL
+    "https://ai-script-grader.onrender.com",  # Render frontend URL (if different)
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins during development
-    allow_credentials=True,
+    allow_origins=origins,
+    allow_credentials=True,  # Enable credentials
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"]
+    expose_headers=["*"],
 )
 
 # Add middleware to log requests
