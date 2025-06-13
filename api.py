@@ -12,6 +12,7 @@ import threading
 import sys
 from io import StringIO
 import time
+import json
 
 app = FastAPI()
 
@@ -23,6 +24,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Handle Google Cloud credentials
+def setup_google_credentials():
+    credentials_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS_JSON')
+    if credentials_json:
+        try:
+            # Parse the JSON to validate it
+            credentials_data = json.loads(credentials_json)
+            # Write to a file
+            credentials_path = "google-credentials.json"
+            with open(credentials_path, 'w') as f:
+                json.dump(credentials_data, f)
+            # Set the environment variable to point to our file
+            os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
+            print("Successfully set up Google Cloud credentials")
+        except json.JSONDecodeError as e:
+            print(f"Error parsing Google Cloud credentials JSON: {e}")
+        except Exception as e:
+            print(f"Error setting up Google Cloud credentials: {e}")
+    else:
+        print("Warning: GOOGLE_APPLICATION_CREDENTIALS_JSON environment variable not set")
+
+# Set up credentials at startup
+@app.on_event("startup")
+async def startup_event():
+    setup_google_credentials()
 
 # Ensure required directories exist
 os.makedirs("storage", exist_ok=True)

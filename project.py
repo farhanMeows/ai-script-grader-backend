@@ -25,13 +25,9 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 # --- Configuration ---
 # Get configuration from environment variables
 PROJECT_ID = os.getenv('GOOGLE_CLOUD_PROJECT_ID')
-CREDENTIALS_PATH = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
 
-if not PROJECT_ID or not CREDENTIALS_PATH:
-    raise ValueError("Missing required environment variables. Please check your .env file.")
-
-# Set environment variable for Google Cloud authentication
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = CREDENTIALS_PATH
+if not PROJECT_ID:
+    raise ValueError("Missing required environment variable GOOGLE_CLOUD_PROJECT_ID")
 
 # Initialize Vertex AI for Gemini with the specified model
 vertexai.init(project=PROJECT_ID, location="us-central1") # 'us-central1' is common for Gemini models
@@ -612,9 +608,6 @@ if __name__ == "__main__":
         print(f"Error: Question paper PDF '{question_paper_path}' not found.")
         print("Please ensure the question paper PDF is in the server/storage directory.")
         print("This file is crucial for Gemini to extract questions and marks.")
-    elif not os.path.exists(CREDENTIALS_PATH):
-        print(f"Error: Google Cloud credentials file '{CREDENTIALS_PATH}' not found.")
-        print("Please ensure your credentials file exists and is properly configured in .env")
     else:
         main_evaluation_pipeline(student_ans_script_path, question_paper_path)
 
