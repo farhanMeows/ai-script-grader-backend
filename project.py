@@ -236,10 +236,14 @@ def extract_student_answers_from_script(answer_script_image_paths, question_pape
         - All handwritten text.
         - **Any relevant diagrams (describe their key visual elements briefly, even if not explicitly labeled by the student, if they logically contribute to the answer).** For example: "[DIAGRAM: A hand-drawn diagram of a CRT monitor showing electron gun, deflection plates, and screen.]"
         - **Any tabular data (describe its content or structure, or try to extract into a simple row-by-row format if possible, even if not explicitly drawn as a formal table).** For example: "[TABLE: A comparison table with columns 'Feature' and 'Description' and several rows of data.]"
-        - **Any mathematical formulas or derivations (transcribe accurately using standard plain text notation, e.g., x^2 + y/z, sqrt(x), even if presented without explicit LaTeX delimiters).**
         - Any code snippets (transcribe accurately).
         - **If there are any other visual elements, describe them briefly.** For example: "[IMAGE: A hand-drawn graph showing a linear relationship between variables X and Y.]"
         - **If there are spelling or grammatical errors,make them correct but do not change the meaning of the answer.**
+        - **Any mathematical formulas or derivations (transcribe using standard math-friendly Unicode symbols when possible):**
+        - Use superscripts for powers (e.g., x², a³)
+            - Use subscripts for molecules or indices (e.g., H₂O, A₁)
+            - Use √x instead of sqrt(x)
+            - Use fraction-style slash (/) instead of `/` when applicable (e.g., y/z)
         **Ignore any content that appears to be rough work, scratchpad calculations, or unrelated doodles, especially if it's in margins, heavily crossed out, or clearly separated from main answers.** Your focus is on extracting the student's final submitted answers.
         If a question from the question paper (listed below) is not explicitly answered by the student, indicate "Not Attempted".
         Ensure that the extracted answer for each question is complete, even if it spans multiple pages.
@@ -251,6 +255,14 @@ def extract_student_answers_from_script(answer_script_image_paths, question_pape
 
         Provide the extracted answers as a JSON array. Each object in the array should correspond to a question from the `question_paper_data` list.
         Use the exact 'question_number' from the `question_paper_data` provided above.
+        
+        **CRITICAL INSTRUCTION**: Your response MUST be a perfectly valid JSON object.
+
+        **VERY IMPORTANT ESCAPING RULES FOR JSON STRINGS**:
+        -Any literal double quote (") within a string value MUST be escaped as \\".
+        -Any literal backslash (\) within a string value MUST be escaped as \\\\.
+        -Newlines within strings should be \\n.
+        DO NOT include any explanatory text or markdown outside the JSON object.
 
         Structure of each answer object:
         {{
@@ -259,7 +271,7 @@ def extract_student_answers_from_script(answer_script_image_paths, question_pape
           "attempted": true/false // Set to false if no discernible answer was found for this question
         }}
 
-        Example of a JSON array response (DO NOT include conversational text outside the JSON):
+        Example of a JSON array response:
         ```json
         [
           {{
@@ -352,12 +364,23 @@ def generate_correct_answer(question_text):
     Generates a concise correct answer for a given question using Gemini.
     """
     prompt = f"""
-    Generate a **concise, factually accurate, and comprehensive** correct answer for the following question.
-    Focus on **key points, essential information, and clear explanations**. Avoid lengthy introductions or unnecessary details.
-    If the question implies a diagram, briefly describe what the diagram should show.
-    If it implies a table, describe the expected columns/rows and example data.
-    If it implies code, provide a simple, correct code snippet.
-    Use standard plain text notation for mathematical formulas (e.g., x^2 + y/z, sqrt(x)).
+    You are an expert academic content writer. Generate a factually accurate, well-structured answer for the question below.
+
+    ✦ Keep the answer **balanced**: not too short, not too long (ideally 4-6 bullet points or 4-6 lines).
+    ✦ Focus on **key points** and **clarity**.
+    ✦ Avoid lengthy introductions, repetition, or unnecessary elaboration.
+    ✦ Format the answer in **bullet points** if possible (except for code, tables, or formulas).
+    ✦ For diagrams: Briefly describe what should be shown.
+    ✦ For tables: Describe the structure (rows/columns and sample values).
+    ✦ For code: Give a minimal, correct snippet only.
+    
+    ✦ ✨ VERY IMPORTANT: Use proper **math formatting**:
+    - Use **Unicode superscripts** for powers (e.g., x², a³, m⁻¹)
+    - Use **Unicode subscripts** for chemical/molecular terms (e.g., H₂O, CO₂)
+    - Use **√x** instead of `sqrt(x)`
+    - Use **fraction-style slash (/)** when appropriate (e.g., y/z instead of y/z)
+
+    DO NOT include any extra comments or conversational text—only the answer content.
 
     Question: {question_text}
     """
@@ -396,8 +419,12 @@ def evaluate_answer(question_data):
 
     try:
         prompt = f"""
-        You are an expert examiner for academic scripts. Evaluate the student's answer against the correct answer for the given question.
-        
+       You are a kind, experienced teacher grading student answers. Be encouraging, fair, and student-friendly.
+    
+        Evaluate the student's answer based on the given question and the ideal answer. Reward effort generously and do not expect perfect model-level answers from the student. If the student captures the main idea or makes a good attempt, assign decent marks. Avoid being harsh for minor mistakes.
+        **When referring to mathematical expressions, use standard Unicode math symbols wherever possible (e.g., x², √x, a/b, H₂O) instead of plain text like x^2 or sqrt(x).**
+
+                
         Question: {question_text}
         Total Marks for this question: {total_marks}
         
@@ -412,16 +439,25 @@ def evaluate_answer(question_data):
         ```
         
         Based on the above, provide:
-        1.  **Mistakes**: A bulleted list of specific errors, inaccuracies, or missing key points in the student's answer compared to the correct answer. If no mistakes, state "No significant mistakes found."
-        2.  **Feedback**: Constructive feedback for the student to improve. This should be actionable advice, focusing on conceptual clarity, accuracy, or completeness.
-        3.  **Assigned Marks**: Assign a mark out of {total_marks} based on accuracy and completeness. The assigned marks should be a non-negative integer or float, and must not exceed the `Total Marks`.
+        1. **mistakes**: A short list of any key missing or incorrect points, if any. Keep it short. If the student mostly got it right, write: "No major mistakes."
+        2. **feedback**: Give short, encouraging advice (1-2 lines) to help the student improve. Avoid lengthy explanations.
+        3. **assigned_marks**: Give a fair mark out of {total_marks}, with a positive bias. Even a partial but relevant answer should get more than 0. Use integers or one decimal place if needed.
+
         
+        **CRITICAL INSTRUCTION**: Your response MUST be a perfectly valid JSON object.
+
+        **VERY IMPORTANT ESCAPING RULES FOR JSON STRINGS**:
+        -Any literal double quote (") within a string value MUST be escaped as \\".
+        -Any literal backslash (\) within a string value MUST be escaped as \\\\.
+        -Newlines within strings should be \\n.
+        DO NOT include any explanatory text or markdown outside the JSON object.
+
         Format your response as a JSON object with keys: "mistakes", "feedback", "assigned_marks".
         Example:
         {{
-          "mistakes": ["- Missing definition of X.", "- Incorrect formula for Y (E=mc^3 instead of E=mc^2)."],
-          "feedback": "Focus on accurate definitions and ensure correct formula application. Review the basics of X and Y.",
-          "assigned_marks": 3.5
+            "mistakes": ["- Missing definition of X...", "- Incorrect formula for Y (E=mc^3 instead of E=mc^2)."],
+            "feedback": "Focus on accurate definitions...",
+            "assigned_marks": 3.5
         }}
         """
         response = GEMINI_MODEL.generate_content(
